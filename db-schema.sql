@@ -1,15 +1,3 @@
--- ============================================
--- Customer Service App
--- PostgreSQL Database Schema
--- ============================================
-
--- Optional:
--- CREATE DATABASE customer_service_app;
-
--- ============================================
--- ENUM TYPES
--- ============================================
-
 CREATE TYPE user_role AS ENUM (
     'CUSTOMER',
     'AGENT',
@@ -39,11 +27,6 @@ CREATE TYPE notification_type AS ENUM (
     'TICKET_RESOLVED'
 );
 
-
--- ============================================
--- USERS
--- ============================================
-
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
 
@@ -60,10 +43,6 @@ CREATE TABLE users (
 );
 
 
--- ============================================
--- CUSTOMERS
--- ============================================
-
 CREATE TABLE customers (
     id BIGSERIAL PRIMARY KEY,
 
@@ -78,10 +57,6 @@ CREATE TABLE customers (
         ON DELETE CASCADE
 );
 
-
--- ============================================
--- AGENTS
--- ============================================
 
 CREATE TABLE agents (
     id BIGSERIAL PRIMARY KEY,
@@ -98,10 +73,6 @@ CREATE TABLE agents (
         ON DELETE CASCADE
 );
 
-
--- ============================================
--- TICKETS
--- ============================================
 
 CREATE TABLE tickets (
     id BIGSERIAL PRIMARY KEY,
@@ -136,11 +107,6 @@ CREATE TABLE tickets (
         ON DELETE SET NULL
 );
 
-
--- ============================================
--- TICKET STATUS HISTORY
--- ============================================
-
 CREATE TABLE ticket_status_history (
     id BIGSERIAL PRIMARY KEY,
 
@@ -167,11 +133,6 @@ CREATE TABLE ticket_status_history (
         ON DELETE RESTRICT
 );
 
-
--- ============================================
--- CHAT MESSAGES
--- ============================================
-
 CREATE TABLE chat_messages (
     id BIGSERIAL PRIMARY KEY,
 
@@ -195,11 +156,6 @@ CREATE TABLE chat_messages (
         REFERENCES users(id)
         ON DELETE RESTRICT
 );
-
-
--- ============================================
--- NOTIFICATIONS
--- ============================================
 
 CREATE TABLE notifications (
     id BIGSERIAL PRIMARY KEY,
@@ -228,11 +184,6 @@ CREATE TABLE notifications (
         REFERENCES tickets(id)
         ON DELETE CASCADE
 );
-
-
--- ============================================
--- SERVICE HISTORY
--- ============================================
 
 CREATE TABLE service_history (
     id BIGSERIAL PRIMARY KEY,
@@ -264,11 +215,6 @@ CREATE TABLE service_history (
         REFERENCES agents(id)
         ON DELETE SET NULL
 );
-
-
--- ============================================
--- INDEXES
--- ============================================
 
 CREATE INDEX idx_users_email
     ON users(email);
@@ -306,10 +252,6 @@ CREATE INDEX idx_notifications_is_read
 CREATE INDEX idx_service_history_customer_id
     ON service_history(customer_id);
 
-
--- ============================================
--- AUTOMATIC updated_at
--- ============================================
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS 21687
