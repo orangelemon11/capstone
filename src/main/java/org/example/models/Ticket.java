@@ -26,11 +26,21 @@ public class Ticket {
     private String description;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(
+            name = "status",
+            nullable = false,
+            columnDefinition = "ticket_status"
+    )
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.NAMED_ENUM)
     private TicketStatus status = TicketStatus.OPEN;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(
+            name = "priority",
+            nullable = false,
+            columnDefinition = "ticket_priority"
+    )
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.NAMED_ENUM)
     private TicketPriority priority = TicketPriority.MEDIUM;
 
     @Column(length = 100)
