@@ -1,6 +1,8 @@
 package org.example.models;
 
 import jakarta.persistence.*;
+import org.example.dto.TicketResponse;
+
 import java.time.LocalDateTime;
 
 @Entity
