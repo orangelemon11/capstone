@@ -1,6 +1,9 @@
 package org.example.models;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -16,10 +19,12 @@ public class TicketStatusHistory {
     private Ticket ticket;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "old_status")
     private TicketStatus oldStatus;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "new_status", nullable = false)
     private TicketStatus newStatus;
 
