@@ -21,19 +21,22 @@ public class TicketService {
     private final AgentRepository agentRepository;
     private final TicketStatusHistoryRepository ticketStatusHistoryRepository;
     private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
 
     public TicketService(
             TicketRepository ticketRepository,
             CustomerRepository customerRepository,
             TicketStatusHistoryRepository ticketStatusHistoryRepository,
             UserRepository userRepository,
-            AgentRepository agentRepository
+            AgentRepository agentRepository,
+            NotificationRepository notificationRepository
             ) {
         this.ticketRepository = ticketRepository;
         this.customerRepository = customerRepository;
         this.agentRepository = agentRepository;
         this.ticketStatusHistoryRepository = ticketStatusHistoryRepository;
         this.userRepository = userRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     @Transactional(readOnly = true)
@@ -79,15 +82,22 @@ public class TicketService {
 
         TicketStatus oldStatus = ticket.getStatus();
 
-        ticket.setStatus(status);
-
         User user = userRepository.findById(changeByUserId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-
-
         if (oldStatus == status)
             return toResponse(ticket);
+
+        Notification notif = new Notification();
+
+        notif.setTicket(ticket);
+        notif.setMessage(String.format("New notification for the ticket id: "+ ticketId));
+        notif.setTitle("Status changed");
+        notif.setUser(ticket.getCustomer().getUser());
+        notif.setRead(false);
+        notif.setType(NotificationType.STATUS_CHANGED);
+
+        notificationRepository.save(notif);
 
         ticket.setStatus(status);
 

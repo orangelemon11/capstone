@@ -1,6 +1,9 @@
 package org.example.models;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -20,7 +23,8 @@ public class Notification {
     private Ticket ticket;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "notification_type")
     private NotificationType type;
 
     @Column(nullable = false, length = 255)

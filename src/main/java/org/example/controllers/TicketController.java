@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/tickets")
@@ -112,6 +113,14 @@ public class TicketController {
             @PathVariable Long id
     ) {
         return chatService.getMessages(id);
+    }
+
+    @PatchMapping("/{ticketId}/messages/{messageId}/read")
+    public ChatMessageResponse changeRead(
+            @PathVariable Long ticketId,
+            @PathVariable Long messageId
+    ) {
+        return chatService.markAsRead(ticketId, messageId);
     }
 
     private record SendMessageRequest(
