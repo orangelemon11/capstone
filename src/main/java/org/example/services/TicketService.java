@@ -2,6 +2,7 @@ package org.example.services;
 
 
 import org.example.dto.TicketResponse;
+import org.example.dto.TicketStatsResponse;
 import org.example.dto.TicketStatusHistoryResponse;
 import org.example.models.*;
 import org.example.repositories.*;
@@ -123,11 +124,30 @@ public class TicketService {
         Agent agent = agentRepository.findById(agentId)
                 .orElseThrow( ()-> new RuntimeException("Agent not found"));
 
+        Agent currentAgent = ticket.getAssignedAgent();
+
+        User agentUser = agent.getUser();
+
+        if(currentAgent != null && currentAgent.getId().equals(agentId)){
+            return toResponse(ticket); //nothing changed
+        }
+
+        Notification noti = new Notification();
+        noti.setTicket(ticket);
+        noti.setType(NotificationType.TICKET_ASSIGNED);
+        noti.setRead(false);
+        noti.setTitle("You were assigned to this ticket");
+        noti.setUser(agentUser);
+        noti.setMessage("You were assigned to some new ticket");
+        notificationRepository.save(noti);
+
+
+
         ticket.setAssignedAgent(agent);
 
         Ticket saved = ticketRepository.save(ticket);
 
-        return toResponse(ticket);
+        return toResponse(saved);
 
     }
 
@@ -166,6 +186,22 @@ public class TicketService {
                 .stream()
                 .map(this::toHistoryResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public TicketStatsResponse getTicketStats() {
+
+        TicketStatsResponse response = new TicketStatsResponse(
+                ticketRepository.count(),
+                ticketRepository.countByStatus(TicketStatus.OPEN),
+                ticketRepository.countByStatus(TicketStatus.IN_PROGRESS),
+                ticketRepository.countByStatus(TicketStatus.WAITING_FOR_CUSTOMER),
+                ticketRepository.countByStatus(TicketStatus.RESOLVED),
+                ticketRepository.countByStatus(TicketStatus.CLOSED)
+
+        );
+
+        return response;
     }
 
     private TicketResponse toResponse(Ticket ticket) {

@@ -3,6 +3,7 @@ package org.example.controllers;
 
 import org.example.dto.ChatMessageResponse;
 import org.example.dto.TicketResponse;
+import org.example.dto.TicketStatsResponse;
 import org.example.dto.TicketStatusHistoryResponse;
 import org.example.models.Ticket;
 import org.example.models.TicketPriority;
@@ -121,6 +122,11 @@ public class TicketController {
             @PathVariable Long messageId
     ) {
         return chatService.markAsRead(ticketId, messageId);
+    }
+
+    @GetMapping("/stats")
+    public TicketStatsResponse getTicketStats() {
+        return ticketService.getTicketStats();
     }
 
     private record SendMessageRequest(
