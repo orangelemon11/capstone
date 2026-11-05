@@ -1,22 +1,23 @@
 package org.example.controllers;
 
 
+import org.apache.coyote.Response;
 import org.example.dto.ChatMessageResponse;
 import org.example.dto.TicketResponse;
 import org.example.dto.TicketStatsResponse;
 import org.example.dto.TicketStatusHistoryResponse;
-import org.example.models.Ticket;
-import org.example.models.TicketPriority;
-import org.example.models.TicketStatus;
-import org.example.models.TicketStatusHistory;
-import org.example.repositories.TicketStatusHistoryRepository;
+import org.example.models.*;
+import org.example.repositories.UserRepository;
 import org.example.services.ChatMessageService;
 import org.example.services.TicketService;
-import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/tickets")
@@ -24,28 +25,98 @@ public class TicketController {
 
     TicketService ticketService;
     private final ChatMessageService chatService;
+    private final UserRepository userRepository;
+    private static final Logger log = LoggerFactory.getLogger(TicketController.class);
 
     public TicketController(
             TicketService ticketService,
-            ChatMessageService chatService
+            ChatMessageService chatService,
+            UserRepository userRepository
     ){
         this.chatService = chatService;
         this.ticketService = ticketService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
     public List<TicketResponse> getAll(
-            @RequestParam(required = false) TicketStatus status
+            @RequestParam(required = false) TicketStatus status,
+            Authentication authentication
     ) {
-        if (status != null) {
-            return ticketService.getByStatus(status);
+        log.info("getAll method for the user: {}", authentication.getName());
+
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User Not found"));
+
+        if(user.getRole() == UserRole.CUSTOMER) {
+
+            List<TicketResponse> customersTickets = ticketService.getByCustomerUser(user.getId());
+
+            if(status  != null) {
+                  customersTickets = customersTickets
+                          .stream()
+                          .filter(ticketResponse -> ticketResponse.status().equals(status))
+                          .toList();
+            }
+
+            return customersTickets;
         }
-        return ticketService.getAll();
+
+        else if(user.getRole() == UserRole.AGENT) {
+
+            List<TicketResponse> agentsTickets = ticketService.getByAgentUser(user.getId());
+
+            if(status != null) {
+                agentsTickets = agentsTickets
+                        .stream()
+                        .filter(ticketResponse -> ticketResponse.status().equals(status))
+                        .toList();
+            }
+
+            return agentsTickets;
+        }
+
+        else if (user.getRole() == UserRole.ADMIN) {
+
+            if(status != null) {
+                return ticketService.getByStatus(status);
+            }
+            return ticketService.getAll();
+        }
+
+        else {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+        }
     }
 
     @GetMapping("/{id}")
-    public TicketResponse getTicketById(@PathVariable Long id) {
-        return ticketService.getById(id).orElseThrow(() -> new RuntimeException("Ticket not found"));
+    public TicketResponse getTicketById(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        log.info("Tickets accessed by user: {}", authentication.getName());
+
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        log.info("User role: {}", user.getRole());
+
+        TicketResponse ticket = ticketService.getById(id)
+                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+        if (user.getRole() == UserRole.CUSTOMER) {
+            if(!ticketService.isTicketOwner(ticket.id(), user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+            }
+        }
+        else if (user.getRole() == UserRole.AGENT) {
+            if(!ticketService.isAssignedAgent(ticket.id(), user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ACCESS DENIED");
+            }
+        }
+
+
+        return ticket;
     }
 
     @PostMapping

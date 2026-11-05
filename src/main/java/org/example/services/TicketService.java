@@ -188,6 +188,25 @@ public class TicketService {
                 .toList();
     }
 
+    public boolean isTicketOwner(Long ticketId, Long userId) {
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found!"));
+
+        return ticket.getCustomer().getUser().getId().equals(userId);
+    }
+
+    public boolean isAssignedAgent(Long ticketId, Long userId) {
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found!"));
+
+        if (ticket.getAssignedAgent() == null)
+            return false;
+
+        return ticket.getAssignedAgent().getUser().getId().equals(userId);
+    }
+
     @Transactional(readOnly = true)
     public TicketStatsResponse getTicketStats() {
 
@@ -202,6 +221,25 @@ public class TicketService {
         );
 
         return response;
+    }
+
+    public List<TicketResponse> getByCustomerUser(Long userId) {
+
+        return ticketRepository.findAll()
+                .stream()
+                .filter(ticket -> ticket.getCustomer().getUser().getId().equals(userId))
+                .map(this::toResponse)
+                .toList();
+
+    }
+
+    public List<TicketResponse> getByAgentUser(Long userId) {
+        return ticketRepository.findAll()
+                .stream()
+                .filter(ticket -> ticket.getAssignedAgent() != null)
+                .filter(ticket -> ticket.getAssignedAgent().getUser().getId().equals(userId))
+                .map(this::toResponse)
+                .toList();
     }
 
     private TicketResponse toResponse(Ticket ticket) {
