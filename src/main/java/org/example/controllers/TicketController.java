@@ -142,8 +142,17 @@ public class TicketController {
     @PatchMapping("/{id}/assign")
     public TicketResponse assignAgent(
             @PathVariable Long id,
-            @RequestBody AssignAgentRequest request
+            @RequestBody AssignAgentRequest request,
+            Authentication authentication
     ) {
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() == UserRole.AGENT) {
+            if(!ticketService.isAssignedAgent(id, user.getId()))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "One can change only its own tickets!");
+        }
+
         return ticketService.assingAgent(id, request.agentId());
     }
 

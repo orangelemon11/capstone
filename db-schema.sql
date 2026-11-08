@@ -216,6 +216,15 @@ CREATE TABLE service_history (
                                          ON DELETE SET NULL
 );
 
+CREATE TABLE ticket_assignment_history (
+                                           id BIGSERIAL PRIMARY KEY,
+                                           ticket_id BIGINT NOT NULL REFERENCES tickets(id),
+                                           previous_agent_id BIGINT REFERENCES agents(id),
+                                           new_agent_id BIGINT NOT NULL REFERENCES agents(id),
+                                           changed_by_user_id BIGINT NOT NULL REFERENCES users(id),
+                                           changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX idx_users_email
     ON users(email);
 
