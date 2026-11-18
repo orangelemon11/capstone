@@ -1,6 +1,7 @@
 package org.example.services;
 
 
+import org.example.dto.TicketAssignmentHistoryResponse;
 import org.example.dto.TicketResponse;
 import org.example.dto.TicketStatsResponse;
 import org.example.dto.TicketStatusHistoryResponse;
@@ -9,6 +10,7 @@ import org.example.repositories.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +25,7 @@ public class TicketService {
     private final TicketStatusHistoryRepository ticketStatusHistoryRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    public final TicketAssignmentHistoryRepository ticketAssignmentHistoryRepository;
 
     public TicketService(
             TicketRepository ticketRepository,
@@ -30,7 +33,8 @@ public class TicketService {
             TicketStatusHistoryRepository ticketStatusHistoryRepository,
             UserRepository userRepository,
             AgentRepository agentRepository,
-            NotificationRepository notificationRepository
+            NotificationRepository notificationRepository,
+            TicketAssignmentHistoryRepository ticketAssignmentHistoryRepository
             ) {
         this.ticketRepository = ticketRepository;
         this.customerRepository = customerRepository;
@@ -38,6 +42,7 @@ public class TicketService {
         this.ticketStatusHistoryRepository = ticketStatusHistoryRepository;
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
+        this.ticketAssignmentHistoryRepository = ticketAssignmentHistoryRepository;
     }
 
     @Transactional(readOnly = true)
@@ -116,7 +121,7 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponse assingAgent(Long ticketId, Long agentId) {
+    public TicketResponse assingAgent(Long ticketId, Long agentId, Long changedByUserId) {
 
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket nout found"));
@@ -131,6 +136,17 @@ public class TicketService {
         if(currentAgent != null && currentAgent.getId().equals(agentId)){
             return toResponse(ticket); //nothing changed
         }
+
+        User changedByUser = userRepository.findById(changedByUserId)
+                        .orElseThrow(() -> new RuntimeException("User not found"));
+
+        TicketAssignmentHistory assignmentHistory = new TicketAssignmentHistory();
+        assignmentHistory.setTicket(ticket);
+        assignmentHistory.setPreviousAgent(currentAgent);
+        assignmentHistory.setNewAgent(agent);
+        assignmentHistory.setChangedBy(changedByUser);
+        assignmentHistory.setChangedAt(LocalDateTime.now());
+        ticketAssignmentHistoryRepository.save(assignmentHistory);
 
         Notification noti = new Notification();
         noti.setTicket(ticket);
@@ -242,6 +258,13 @@ public class TicketService {
                 .toList();
     }
 
+    public List<TicketAssignmentHistoryResponse> getAssignmentHistory(Long ticketId) {
+        return ticketAssignmentHistoryRepository.findByTicket_Id(ticketId)
+                .stream()
+                .map(this::toAssignmentHistoryResponse)
+                .toList();
+    }
+
     private TicketResponse toResponse(Ticket ticket) {
         return new TicketResponse(
                 ticket.getId(),
@@ -270,6 +293,21 @@ public class TicketService {
                 history.getNewStatus(),
                 history.getChangedByUser().getId(),
                 history.getComment(),
+                history.getChangedAt()
+        );
+    }
+
+    private TicketAssignmentHistoryResponse toAssignmentHistoryResponse(
+            TicketAssignmentHistory history
+    ) {
+        return new TicketAssignmentHistoryResponse(
+                history.getId(),
+                history.getTicket().getId(),
+                history.getPreviousAgent() != null
+                        ? history.getPreviousAgent().getId()
+                        : null,
+                history.getNewAgent().getId(),
+                history.getChangedBy().getId(),
                 history.getChangedAt()
         );
     }

@@ -2,11 +2,9 @@ package org.example.controllers;
 
 
 import org.apache.coyote.Response;
-import org.example.dto.ChatMessageResponse;
-import org.example.dto.TicketResponse;
-import org.example.dto.TicketStatsResponse;
-import org.example.dto.TicketStatusHistoryResponse;
+import org.example.dto.*;
 import org.example.models.*;
+import org.example.repositories.TicketAssignmentHistoryRepository;
 import org.example.repositories.UserRepository;
 import org.example.services.ChatMessageService;
 import org.example.services.TicketService;
@@ -134,9 +132,22 @@ public class TicketController {
     @PatchMapping("/{id}/status")
     public TicketResponse updateStatus(
             @PathVariable Long id,
-            @RequestBody UpdateStatusRequest request
+            @RequestBody UpdateStatusRequest request,
+            Authentication authentication
     ) {
-        return ticketService.updateStatus(id, request.status(), request.changedByUserId());
+
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found!"));
+
+        if(user.getRole() == UserRole.CUSTOMER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+        }
+        else if(user.getRole() == UserRole.AGENT) {
+            if (!ticketService.isAssignedAgent(id, user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access Denied");
+            }
+        }
+        return ticketService.updateStatus(id, request.status(), user.getId());
     }
 
     @PatchMapping("/{id}/assign")
@@ -153,7 +164,29 @@ public class TicketController {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "One can change only its own tickets!");
         }
 
-        return ticketService.assingAgent(id, request.agentId());
+        return ticketService.assingAgent(id, request.agentId(), user.getId());
+    }
+
+    @GetMapping("/{id}/assigned-history")
+    public List<TicketAssignmentHistoryResponse> getAssignedHistory(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() == UserRole.CUSTOMER) {
+            if (!ticketService.isTicketOwner(id, user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You're not the owner of the ticket!");
+            }
+        }
+        else if(user.getRole() == UserRole.AGENT) {
+            if (!ticketService.isAssignedAgent(id, user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not the currently assigned agent!");
+            }
+        }
+        return ticketService.getAssignmentHistory(id);
     }
 
     @GetMapping("/agent/{agentId}")
@@ -227,7 +260,6 @@ public class TicketController {
     ){}
 
     private record UpdateStatusRequest(
-            TicketStatus status,
-            Long changedByUserId
+            TicketStatus status
     ) {}
 }

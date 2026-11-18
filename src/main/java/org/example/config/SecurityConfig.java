@@ -39,6 +39,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/tickets/stats").hasAnyRole("ADMIN", "AGENT")
                         .requestMatchers(HttpMethod.PATCH, "/api/tickets/*/assign").hasAnyRole("ADMIN", "AGENT")
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.PATCH, "/api/tickets/*/status").hasAnyRole("ADMIN", "AGENT")
                         .anyRequest().authenticated())
                 .httpBasic(Customizer.withDefaults())
                 .build();
