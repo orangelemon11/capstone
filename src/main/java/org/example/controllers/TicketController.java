@@ -11,6 +11,7 @@ import org.example.services.TicketService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.server.ResponseStatusException;
@@ -213,28 +214,87 @@ public class TicketController {
     @PostMapping("/{id}/messages")
     public ChatMessageResponse sendMessage(
             @PathVariable Long id,
-            @RequestBody SendMessageRequest request
+            @RequestBody SendMessageRequest request,
+            Authentication authentication
     ) {
+
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() == UserRole.CUSTOMER) {
+            if (!ticketService.isTicketOwner(id, user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You're not authorized to send messages to this ticket");
+            }
+        }
+        else if(user.getRole() == UserRole.AGENT) {
+            if (!ticketService.isAssignedAgent(id, user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You're not authorized to send messages to this ticket");
+            }
+        }
+
         return chatService.sendMessage(
                 id,
-                request.senderUserId(),
+                user.getId(),
                 request.message()
         );
     }
 
     @GetMapping("/{id}/messages")
     public List<ChatMessageResponse> getMessages(
-            @PathVariable Long id
+            @PathVariable Long id,
+            Authentication authentication
     ) {
+
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() == UserRole.CUSTOMER) {
+            if (!ticketService.isTicketOwner(id, user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You're not authorized to get messages to this ticket");
+            }
+        }
+        else if(user.getRole() == UserRole.AGENT) {
+            if (!ticketService.isAssignedAgent(id, user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You're not authorized to get messages to this ticket");
+            }
+        }
+
+
         return chatService.getMessages(id);
     }
 
     @PatchMapping("/{ticketId}/messages/{messageId}/read")
     public ChatMessageResponse changeRead(
             @PathVariable Long ticketId,
-            @PathVariable Long messageId
+            @PathVariable Long messageId,
+            Authentication authentication
     ) {
-        return chatService.markAsRead(ticketId, messageId);
+
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if(user.getRole() == UserRole.CUSTOMER) {
+            if(!ticketService.isTicketOwner(ticketId, user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+            }
+        }
+        else if(user.getRole() == UserRole.AGENT) {
+            if(!ticketService.isAssignedAgent(ticketId, user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+            }
+        }
+        else {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Only ticket participants can mark messages as read"
+            );
+        }
+
+        return chatService.markAsRead(ticketId, messageId, user.getId());
     }
 
     @GetMapping("/stats")
@@ -243,7 +303,6 @@ public class TicketController {
     }
 
     private record SendMessageRequest(
-            Long senderUserId,
             String message
     ) {
     }

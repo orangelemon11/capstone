@@ -7,10 +7,12 @@ import org.example.repositories.ChatMessageRepository;
 import org.example.repositories.NotificationRepository;
 import org.example.repositories.TicketRepository;
 import org.example.repositories.UserRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.server.ResponseStatusException;
 
 
 import java.util.List;
@@ -104,23 +106,26 @@ public class ChatMessageService {
     }
 
     @Transactional
-    public ChatMessageResponse markAsRead(Long ticketId, Long messageId) {
-
-        if(!ticketRepository.existsById(ticketId) || !chatMessageRepository.existsById(messageId)) {
-            throw new RuntimeException("Message not found");
-        }
+    public ChatMessageResponse markAsRead(Long ticketId, Long messageId, Long changedById) {
 
         ChatMessage chatMessage = chatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new RuntimeException("Chat message not found"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Chat message not found"
+                ));
+
+        if(chatMessage.getSenderUser().getId().equals(changedById)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+        }
 
         Ticket ticket = chatMessage.getTicket();
 
-        logger.info("Ticket id z ticket.getId {}", ticket.getId());
-        logger.info("Ticket id z url {}", ticketId);
+        logger.info("Ticket id from ticket.getId {}", ticket.getId());
+        logger.info("Ticket id from url {}", ticketId);
 
         if (!ticket.getId().equals(ticketId)) {
             logger.error("Wrong ticket id");
-            throw new RuntimeException("Wrong ticket id");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
         }
 
         chatMessage.setRead(true);
@@ -132,6 +137,7 @@ public class ChatMessageService {
         return toResponse(saved);
 
     }
+
 
     private ChatMessageResponse toResponse(ChatMessage chatMessage) {
         return new ChatMessageResponse(
